@@ -1,7 +1,7 @@
 id=megatron_snapdragon_adaptive_v1
 name=Megatron Snapdragon Adaptive Performance
-version=1.0
-versionCode=100
+version=1.2.0
+versionCode=103
 author=MoccaMocci
-description=Universal adaptive Snapdragon performance engine by MoccaMocci.
+description=Adaptive Snapdragon performance module with capability detection, performance profiles, thermal-aware safeguards and WebUI.
 updateJson=https://raw.githubusercontent.com/ZenyAmeliani/Megatron-Snapdragon-Adaptive-Performance/main/update.json
