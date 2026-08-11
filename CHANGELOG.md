@@ -1,35 +1,29 @@
 # Megatron Snapdragon Adaptive Performance
 
+## Version 1.2.0
+- Redesigned WebUI with Megatron performance artwork background.
+- Added dynamic Engine / Profile / Thermal / CPU Policy / GPU / Status panel.
+- Thermal protection remains active.
+- Improved user feedback after profile application.
+
+# Megatron Snapdragon Adaptive Performance
+
+## Version 1.1.1
+- Fixed profile activation when helper script executable permissions are not preserved.
+- WebUI now invokes apply/engine through `/system/bin/sh`.
+- Installer explicitly restores executable permissions for module shell scripts.
+- Thermal protection remains enabled.
+
+# Megatron Snapdragon Adaptive Performance
+
+## Version 1.1
+- Fixed WebUI JavaScript loading by using a local KernelSU bridge module.
+- Fixed profile buttons and refresh detection interaction.
+- Added WebUI timeout/error handling and clearer status messages.
+- Improved Qualcomm/Snapdragon detection using SoC, board platform and hardware properties.
+- Added safe profile application helper.
+- Thermal protection remains enabled.
+- Unsupported kernel interfaces are skipped.
+
 ## Version 1.0
-
-### 🚀 Initial Public Release
-
-- Universal adaptive Snapdragon performance engine.
-- Adaptive CPU policy detection.
-- Governor detection berdasarkan kemampuan kernel.
-- CPU frequency handling berdasarkan nilai yang tersedia pada perangkat.
-- Qualcomm Adreno / KGSL detection.
-- Adaptive I/O scheduler handling.
-- VM / memory tuning.
-- Balanced profile.
-- Performance profile.
-- Gaming profile.
-- Extreme profile.
-- Thermal-aware performance fallback.
-- Diagnostic mode.
-- Performance logging.
-- WebUI support.
-- Megatron Modul branding.
-- Telegram channel integration.
-
-### 👨‍💻 Developer
-
-**MoccaMocci**
-
-### 📢 Official Channel
-
-https://t.me/MegatronModul
-
-### © Copyright
-
-**Copyright © Megatron Official 2026**
+- Initial public release.
