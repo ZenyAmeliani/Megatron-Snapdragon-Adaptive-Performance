@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Megatron Snapdragon Adaptive Performance</title>
+<style>
+:root{color-scheme:dark}*{box-sizing:border-box}body{font-family:system-ui,-apple-system,sans-serif;margin:0;background:#080c12;color:#eef2f6;background-image:linear-gradient(rgba(8,12,18,.88),rgba(8,12,18,.96)),url("./megatron-bg.png");background-size:cover;background-position:center top;background-attachment:fixed;background-repeat:no-repeat}main{max-width:760px;margin:auto;padding:18px}.card{background:#121923;border:1px solid #283442;border-radius:18px;padding:18px;margin:12px 0}h1{font-size:22px;margin:0 0 4px}.muted{opacity:.72;font-size:13px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}button{width:100%;padding:13px;border:0;border-radius:12px;background:#263445;color:#fff;font-weight:700;min-height:48px}button:disabled{opacity:.55}button.active{outline:2px solid #7bdcff}pre{white-space:pre-wrap;word-break:break-word;font-size:12px;line-height:1.45;background:#0b1017;border-radius:12px;padding:12px;min-height:64px}#status{margin-top:10px}.ok{opacity:1}.error{opacity:1}a{color:#7bdcff}
+</style>
+</head>
+<body>
+<main>
+<div class="card"><h1>Megatron Snapdragon Adaptive Performance</h1><div class="muted">Version 1.2 • Developer: MoccaMocci</div></div>
+<div class="card"><strong>Device</strong><pre id="device">Menyiapkan deteksi...</pre><button id="refreshBtn" type="button">Refresh detection</button></div>
+<div class="card"><strong>Performance Profile</strong><div class="grid" style="margin-top:10px"><button data-p="balanced" type="button">Balanced</button><button data-p="performance" type="button">Performance</button><button data-p="gaming" type="button">Gaming</button><button data-p="extreme" type="button">Extreme</button></div><div id="status" class="muted">Ready.</div></div>
+<div class="card"><strong>Safety &amp; Engine Status</strong><pre id="engineStatus">Engine : Checking...
+Profile : Checking...
+Thermal : Active
+CPU Policy : Adaptive
+GPU : Adaptive
+Status : Ready</pre><a href="https://t.me/MegatronModul" target="_blank" rel="noopener">Telegram: MegatronModul</a><p class="muted">Megatron Module by MoccaMocci<br>Copyright © Megatron Official 2026</p></div>
+</main>
+<script type="module">
+import { exec, toast } from './ksu.js';
+
+const MOD='/data/adb/modules/megatron_snapdragon_adaptive_v1';
+const deviceEl=document.getElementById('device');
+const statusEl=document.getElementById('status');
+const refreshBtn=document.getElementById('refreshBtn');
+const buttons=[...document.querySelectorAll('[data-p]')];
+const engineStatusEl=document.getElementById('engineStatus');
+
+function status(text, error=false){ statusEl.textContent=text; statusEl.className=error?'error':'ok'; }
+function setBusy(busy){ refreshBtn.disabled=busy; buttons.forEach(b=>b.disabled=busy); }
+function withTimeout(promise, ms=10000){
+  return Promise.race([promise,new Promise((_,reject)=>setTimeout(()=>reject(new Error('Perintah timeout')),ms))]);
+}
+async function run(command){
+  const r=await withTimeout(exec(command),10000);
+  if(Number(r.errno)!==0) throw new Error(r.stderr || ('errno '+r.errno));
+  return r.stdout || '';
+}
+function parseEnv(text){
+  const out={};
+  text.split(/\r?\n/).forEach(line=>{const i=line.indexOf('=');if(i>0)out[line.slice(0,i)]=line.slice(i+1)});
+  return out;
+}
+async function refreshEngineStatus(profileHint='balanced', statusText='Ready') {
+  try {
+    const out=await run('sh -c \"p=$(grep ^PROFILE= \"'+MOD+'/config.sh\" 2>/dev/null | cut -d= -f2); [ -n \"$p\" ] || p=balanced; echo PROFILE=$p; echo THERMAL=Active; echo CPU_POLICY=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_governor 2>/dev/null || echo adaptive); echo GPU=Adaptive; echo ENGINE=Running; echo STATUS=\\\"'+statusText.replace('\\\"','')+'\\\"\"');
+    const d=parseEnv(out);
+    engineStatusEl.textContent=[
+      'Engine : '+(d.ENGINE||'Running'),
+      'Profile : '+(d.PROFILE||profileHint),
+      'Thermal : Active',
+      'CPU Policy : '+(d.CPU_POLICY||'Adaptive'),
+      'GPU : Adaptive',
+      'Status : '+(d.STATUS||statusText)
+    ].join('\n');
+  } catch(e) {
+    engineStatusEl.textContent='Engine : Running\nProfile : '+profileHint+'\nThermal : Active\nCPU Policy : Adaptive\nGPU : Adaptive\nStatus : '+statusText;
+  }
+}
+function renderDevice(text){
+  const d=parseEnv(text);
+  if(!d.MEG_DETECT_OK){deviceEl.textContent=text||'Deteksi tidak menghasilkan data.';return;}
+  deviceEl.textContent=[
+    'SoC: '+(d.MEG_SOC||'Unknown'),
+    'Hardware: '+(d.MEG_HARDWARE||'Unknown'),
+    'Android: '+(d.MEG_ANDROID||'Unknown'),
+    'Kernel: '+(d.MEG_KERNEL||'Unknown'),
+    'CPU: '+(d.MEG_CPU_COUNT||'0')+' cores',
+    'GPU KGSL: '+(d.MEG_GPU_PRESENT==='1'?'Detected':'Not detected'),
+    'Thermal zones: '+(d.MEG_THERMAL_ZONES||'0'),
+    'Snapdragon: '+(d.MEG_IS_QUALCOMM==='1'?'Yes':'Not confirmed')
+  ].join('\n');
+}
+async function refresh(){
+  setBusy(true); status('Detecting device...'); deviceEl.textContent='Detecting...';
+  try{ const out=await run('sh "'+MOD+'/detect.sh" && cat "'+MOD+'/meg_detect.env"'); renderDevice(out); status('Detection complete.'); await refreshEngineStatus(); }
+  catch(e){ deviceEl.textContent='Detection failed: '+e.message; status('WebUI error: '+e.message,true); }
+  finally{ setBusy(false); }
+}
+async function applyProfile(profile){
+  if(!['balanced','performance','gaming','extreme'].includes(profile)) return;
+  setBusy(true); status('Applying '+profile+'...');
+  try{
+    await run('/system/bin/sh "'+MOD+'/apply.sh" "'+profile+'"');
+    buttons.forEach(b=>b.classList.toggle('active',b.dataset.p===profile));
+    status('Applied: '+profile+' (thermal protection tetap aktif)');
+    try{toast('Megatron: '+profile+' aktif');}catch(_){ }
+    await refreshEngineStatus(profile,'Applied Successfully');
+    await refresh();
+  }catch(e){ status('Apply failed: '+e.message,true); await refreshEngineStatus(profile,'Apply Failed'); }
+  finally{ setBusy(false); }
+}
+refreshBtn.addEventListener('click',refresh);
+buttons.forEach(b=>b.addEventListener('click',()=>applyProfile(b.dataset.p)));
+refresh();
+</script>
+</body>
+</html>
