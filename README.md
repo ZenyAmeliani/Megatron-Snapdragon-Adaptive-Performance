@@ -1,4 +1,8 @@
-# Megatron Snapdragon Adaptive Performance
+# ⚡ Megatron Snapdragon Adaptive Performance
+
+<p align="center">
+  <img src="webroot/megatron-bg.png" width="100%">
+</p>
 
 **Version 1.2.0 — MoccaMocci**
 
