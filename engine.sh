@@ -1,116 +1,58 @@
 #!/system/bin/sh
+MODDIR="${0%/*}"
+LOG="$MODDIR/megatron.log"
+DETECT="$MODDIR/meg_detect.env"
+CONFIG="$MODDIR/config.sh"
 
-MODDIR=${0%/*}
-LOGFILE="$MODDIR/megatron.log"
-
-log() {
-    echo "[Megatron Engine] $1" >> "$LOGFILE"
+log(){ [ "${LOG_ENABLED:-1}" = "1" ] && echo "$(date '+%H:%M:%S' 2>/dev/null) [Megatron] $*" >> "$LOG"; }
+write_if_supported(){
+  NODE="$1"; VALUE="$2"
+  [ -e "$NODE" ] && [ -w "$NODE" ] || return 0
+  printf '%s' "$VALUE" > "$NODE" 2>/dev/null || return 0
+  log "Applied $NODE=$VALUE"
 }
 
-# =========================================================
-# Megatron Snapdragon Adaptive Performance Engine
-# Version 1.0
-# Developer: MoccaMocci
-# =========================================================
+[ -r "$CONFIG" ] && . "$CONFIG"
+[ -x "$MODDIR/detect.sh" ] && "$MODDIR/detect.sh"
+[ -r "$DETECT" ] && . "$DETECT"
 
-log "Engine initialization"
+case "${PROFILE:-balanced}" in balanced|performance|gaming|extreme) ;; *) PROFILE=balanced ;; esac
+log "Engine start: SoC=${MEG_SOC:-unknown}, profile=$PROFILE"
 
-# ---------------------------------------------------------
-# CPU POLICY DETECTION
-# ---------------------------------------------------------
+if [ "${MEG_IS_QUALCOMM:-0}" != "1" ]; then
+  log "Qualcomm/Snapdragon not confirmed; safe exit"
+  exit 0
+fi
 
 for POLICY in /sys/devices/system/cpu/cpufreq/policy*; do
-    [ -d "$POLICY" ] || continue
-
-    GOV="$POLICY/scaling_governor"
-    AVAIL="$POLICY/scaling_available_governors"
-
-    if [ -f "$AVAIL" ] && [ -w "$GOV" ]; then
-
-        if grep -qw "schedutil" "$AVAIL"; then
-            echo "schedutil" > "$GOV" 2>/dev/null
-            log "schedutil enabled: $POLICY"
-
-        elif grep -qw "interactive" "$AVAIL"; then
-            echo "interactive" > "$GOV" 2>/dev/null
-            log "interactive enabled: $POLICY"
-
-        else
-            log "Kernel governor left unchanged: $POLICY"
-        fi
-    fi
+  [ -d "$POLICY" ] || continue
+  GOV="$POLICY/scaling_governor"
+  AVAIL="$POLICY/scaling_available_governors"
+  [ -r "$AVAIL" ] && [ -w "$GOV" ] || continue
+  case "$PROFILE" in
+    balanced)
+      grep -qw schedutil "$AVAIL" && write_if_supported "$GOV" schedutil
+      ;;
+    performance|gaming|extreme)
+      if grep -qw performance "$AVAIL"; then
+        write_if_supported "$GOV" performance
+      elif grep -qw schedutil "$AVAIL"; then
+        write_if_supported "$GOV" schedutil
+      fi
+      ;;
+  esac
 done
 
-# ---------------------------------------------------------
-# CPU BOOST CAPABILITY DETECTION
-# ---------------------------------------------------------
-
-if [ -e /sys/devices/system/cpu/cpufreq/boost ]; then
-    log "CPU boost interface detected"
+GPU="/sys/class/kgsl/kgsl-3d0"
+if [ -d "$GPU" ] && [ -r "$GPU/devfreq/available_governors" ] && [ -w "$GPU/devfreq/governor" ]; then
+  AVAIL_GPU="$GPU/devfreq/available_governors"
+  if grep -qw msm-adreno-tz "$AVAIL_GPU"; then
+    write_if_supported "$GPU/devfreq/governor" msm-adreno-tz
+  elif grep -qw simple_ondemand "$AVAIL_GPU"; then
+    write_if_supported "$GPU/devfreq/governor" simple_ondemand
+  fi
 fi
 
-if [ -e /sys/devices/system/cpu/cpufreq/cpuinfo_max_freq ]; then
-    log "CPU frequency interface detected"
-fi
-
-# ---------------------------------------------------------
-# GPU DETECTION
-# ---------------------------------------------------------
-
-if [ -d /sys/class/kgsl ]; then
-    log "Qualcomm Adreno / KGSL detected"
-
-    if [ -d /sys/class/kgsl/kgsl-3d0 ]; then
-        log "Adreno GPU node detected"
-    fi
-else
-    log "KGSL unavailable - GPU tuning skipped"
-fi
-
-# ---------------------------------------------------------
-# I/O DETECTION
-# ---------------------------------------------------------
-
-for SCHED in /sys/block/*/queue/scheduler; do
-    [ -f "$SCHED" ] || continue
-
-    DEVICE=$(echo "$SCHED" | cut -d/ -f4)
-
-    if grep -qw "mq-deadline" "$SCHED"; then
-        log "mq-deadline available: $DEVICE"
-    elif grep -qw "none" "$SCHED"; then
-        log "none scheduler available: $DEVICE"
-    else
-        log "I/O scheduler detected: $DEVICE"
-    fi
-done
-
-# ---------------------------------------------------------
-# MEMORY DETECTION
-# ---------------------------------------------------------
-
-if [ -r /proc/meminfo ]; then
-    RAM_KB=$(awk '/MemTotal/ {print $2}' /proc/meminfo)
-    RAM_MB=$((RAM_KB / 1024))
-
-    log "RAM detected: ${RAM_MB} MB"
-fi
-
-# ---------------------------------------------------------
-# SOC INFORMATION
-# ---------------------------------------------------------
-
-SOC_MANUFACTURER=$(getprop ro.soc.manufacturer)
-SOC_MODEL=$(getprop ro.soc.model)
-
-log "SoC manufacturer: $SOC_MANUFACTURER"
-log "SoC model: $SOC_MODEL"
-
-# ---------------------------------------------------------
-# SAFETY
-# ---------------------------------------------------------
-
-log "No unsupported frequency or voltage values forced"
-log "Adaptive engine initialization completed"
-
+log "Thermal zones=${MEG_THERMAL_ZONES:-0}; thermal protection untouched"
+log "Profile applied: $PROFILE"
 exit 0
