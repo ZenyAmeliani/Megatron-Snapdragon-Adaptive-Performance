@@ -1,6 +1,6 @@
 # Megatron Snapdragon Adaptive Performance
 
-**Version 1.1 — MoccaMocci**
+**Version 1.2.0 — MoccaMocci**
 
 Adaptive performance module for Qualcomm Snapdragon Android devices.
 
